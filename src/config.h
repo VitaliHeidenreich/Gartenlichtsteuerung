@@ -15,6 +15,8 @@
 #define RELAIS_2        18
 #define RELAIS_3        5
 
+//#define BATTERYVOLTAGE  
+
 #define RUN_PIN         12
 
 typedef struct

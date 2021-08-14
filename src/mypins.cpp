@@ -34,9 +34,29 @@ void mypins::setRelais(uint8_t R1, uint8_t R2, uint8_t R3)
         digitalWrite( RELAIS_3, LOW);
 }
 
-uint8_t getSolarState()
+uint32_t mypins::getSolarState()
 {
-    uint8_t iRet = 0;
+    static uint32_t iRet = 4000;
+    static uint8_t updateAllowed = 0;
+    static uint32_t value[ANZAHL_MESV];
+    static uint8_t count = 0;
+
+    if( count >= ANZAHL_MESV )
+    {
+        count = 0;
+        updateAllowed = 1;
+    }
+
+    value[ count ] = analogRead( PV_VOLTAGE_PIN );
+    count++;
+
+    if( updateAllowed )
+    {
+        iRet = 0;
+        for(uint8_t i = 0; i < ANZAHL_MESV; i++)
+            iRet += value[ i ];
+        iRet /= ANZAHL_MESV;
+    }
 
     return iRet;
 }

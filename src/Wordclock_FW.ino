@@ -10,6 +10,15 @@ Commands com;
 Zeitmaster *pZeit;
 
 char c;
+uint8_t event = 0;
+hw_timer_t * timer = NULL;
+portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+void IRAM_ATTR onTimer()
+{
+    portENTER_CRITICAL_ISR(&timerMux);
+    event = 1;
+    portEXIT_CRITICAL_ISR(&timerMux);
+}
 
 /* START SETUP ************************************************************/
 void setup()
@@ -17,6 +26,11 @@ void setup()
     Serial.begin(115200);
     Serial.println("hallo welt!");
     InOut = mypins();
+    // Timer
+    timer = timerBegin(0, 80, true);
+    timerAttachInterrupt(timer, &onTimer, true);
+    timerAlarmWrite(timer, 1000000, true);
+    timerAlarmEnable(timer);
 
     // Zeitfunktionen
     pZeit = new Zeitmaster();
@@ -28,6 +42,12 @@ void setup()
 **************************************************************************************************************************/
 void loop()
 {
+    if( event )
+    {
+        InOut.getSolarState();
+        event = 0;
+    }
+    
     // Eventgetriggerte Steuerung der Bewegung und der LEDs
     if( com.compareTimeToTriggerTheLight() )
     {

@@ -1,9 +1,11 @@
 #include "Commands.h"
 #include "config.h"
 #include "Zeitmaster.h"
+#include "mypins.h"
 
 
 Zeitmaster *_interpreterzeitmaster;
+mypins *IO;
 
 timeSet Commands::onTime = {22,10};
 timeSet Commands::offTime = {5,1};
@@ -169,7 +171,6 @@ void Commands::CommandSetTime(char *Uhrzeit)
 
 void Commands::showInfo( void )
 {
-
     Serial.print("");
     Serial.print("---------------------\nAktuelle Zeit:  ");
     if( _interpreterzeitmaster->getHours() < 10)
@@ -209,7 +210,7 @@ void Commands::showInfo( void )
         Serial.println(oberesLimitSensor);
         Serial.print("Unteres Sensorlimit:  "); 
         Serial.println(unteresLimitSensor);
-        Serial.print("Aktueller Sensorwert: "); Serial.println("ToDo");
+        Serial.print("Aktueller Sensorwert: "); Serial.println(IO->getSolarState());
         Serial.println("---------------------");
     }
 }

@@ -11,6 +11,8 @@
 
 #define SOLAR_ON_VAL    2000
 #define SOLAR_OFF_VAL   1800
+#define PV_VOLTAGE_PIN  35
+#define ANZAHL_MESV     30
 
 class mypins {
     private:
@@ -18,9 +20,7 @@ class mypins {
     public:
         mypins( );
         void setRelais(uint8_t R1, uint8_t R2, uint8_t R3);
-        uint8_t getSolarState();
-
-        //static timeSet onTime; 
+        uint32_t getSolarState();
 };
 
 #endif /* MYHEADER_H */
