@@ -11,6 +11,7 @@ timeSet Commands::onTime = {22,10};
 timeSet Commands::offTime = {5,1};
 uint16_t Commands::unteresLimitSensor = 800;
 uint16_t Commands::oberesLimitSensor = 2200;
+uint8_t Commands::controlBySensorAllowed = 0;
 
 Commands::Commands()
 {
@@ -91,6 +92,10 @@ uint8_t Commands::readCommandCharFromSerial(char CommandChar)
             case 'U':
                     unteresLimitSensor = limitseinstellen( _AppBefehl );
                     break;
+            
+            case 'A':
+                    controlBySensorAllowed = checkForNotZero( _AppBefehl );
+                    break;
 
             default:
                 iRet = 0;
@@ -100,6 +105,17 @@ uint8_t Commands::readCommandCharFromSerial(char CommandChar)
 
     // Trigger um ein Ereignis auszulösen
     return iRet;
+}
+
+uint8_t Commands::checkForNotZero( char *value )
+{
+    uint8_t iRes = 0;
+    for(uint8_t i = 0; i < 6; i++ )
+        iRes += *(value + 1);
+    if( iRes )
+        return 1;
+    else
+        return 0;
 }
 
 /***************************************************************************
@@ -210,7 +226,11 @@ void Commands::showInfo( void )
         Serial.println(oberesLimitSensor);
         Serial.print("Unteres Sensorlimit:  "); 
         Serial.println(unteresLimitSensor);
-        Serial.print("Aktueller Sensorwert: "); Serial.println(IO->getSolarState());
+        Serial.print("Aktueller Sensorwert: "); Serial.println(IO->medianSensVal);
+        if( IO->getSolarState() )
+            Serial.println("Laut Sensor sollten die Lichter an sein.");
+        else
+            Serial.println("Laut Sensor sollten die Lichter aus sein.");
         Serial.println("---------------------");
     }
 }

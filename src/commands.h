@@ -22,8 +22,10 @@ public:
      void CommandSetOnTime( char  *_Time );
      void CommandSetOffTime( char  *_Time );
 
+     static uint16_t unteresLimitSensor;
+     static uint16_t oberesLimitSensor;
 
-
+     static uint8_t controlBySensorAllowed;
 
 private:
      void CommandSetTime( char *Uhrzeit );
@@ -31,8 +33,8 @@ private:
      void GetTime( timeSet t );
      static timeSet onTime;
      static timeSet offTime;
-     static uint16_t unteresLimitSensor;
-     static uint16_t oberesLimitSensor;
+     uint8_t checkForNotZero( char *value );
+     
      uint16_t limitseinstellen( char *c );
 
 };

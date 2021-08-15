@@ -44,7 +44,7 @@ void loop()
 {
     if( event )
     {
-        InOut.getSolarState();
+        InOut.calcSolarState();
         event = 0;
     }
     
@@ -55,7 +55,10 @@ void loop()
     }
     else
     {
-        InOut.setRelais(0,0,0);
+        if( InOut.getSolarState() && com.controlBySensorAllowed )
+            InOut.setRelais(1,1,1);
+        else
+            InOut.setRelais(0,0,0);
     }
 
     if (Serial.available() > 0)

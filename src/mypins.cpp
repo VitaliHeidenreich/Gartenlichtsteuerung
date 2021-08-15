@@ -1,8 +1,12 @@
 #include <Arduino.h>
 #include "config.h"
 #include "mypins.h"
-
+#include "commands.h"
 //timeSet mypins::onTime = {10,10};
+
+Commands *cm;
+uint32_t mypins::medianSensVal = 2000;
+uint8_t mypins::solarStateRes = 0;
 
 mypins::mypins()
 {
@@ -34,9 +38,8 @@ void mypins::setRelais(uint8_t R1, uint8_t R2, uint8_t R3)
         digitalWrite( RELAIS_3, LOW);
 }
 
-uint32_t mypins::getSolarState()
+uint8_t mypins::calcSolarState()
 {
-    static uint32_t iRet = 4000;
     static uint8_t updateAllowed = 0;
     static uint32_t value[ANZAHL_MESV];
     static uint8_t count = 0;
@@ -50,13 +53,23 @@ uint32_t mypins::getSolarState()
     value[ count ] = analogRead( PV_VOLTAGE_PIN );
     count++;
 
-    if( updateAllowed )
-    {
-        iRet = 0;
-        for(uint8_t i = 0; i < ANZAHL_MESV; i++)
-            iRet += value[ i ];
-        iRet /= ANZAHL_MESV;
-    }
+    medianSensVal = 0;
+    for(uint8_t z = 0; z < ANZAHL_MESV; z++)
+        medianSensVal += value[ z ];
 
-    return iRet;
+    medianSensVal /= ANZAHL_MESV;
+
+    if( updateAllowed && ( medianSensVal <= cm->unteresLimitSensor ) )
+        solarStateRes = 1;
+    else if( ( medianSensVal >= cm->oberesLimitSensor ) )
+        solarStateRes = 0;
+    else
+        solarStateRes = solarStateRes;
+    
+    return solarStateRes;
+}
+
+uint8_t mypins::getSolarState()
+{
+    return solarStateRes;;
 }
