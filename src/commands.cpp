@@ -18,22 +18,30 @@ Commands::Commands()
     //_interpreterzeitmaster = new Zeitmaster();
 }
 
-/** ===========================================================
- *  | Befehlsstruktur:                                        |
- *  |-----------------+---------------------+-----------------|
- *  | Start/Erkennung | Eigentlicher Befehl | Ende            |
- *  |-----------------+---------------------+-----------------+
- *  | "X"             | # X X X X X X       | '$\n' oder '$\t |
- *  |-----------------+---------------------+-----------------|
+/** =========================================================================
+ *  | Command structure:                                                    |
+ *  |-----------------+--------------+--------------------+-----------------|
+ *  | Startsign       | Command type | Command parameters | Endsign         |
+ *  |-----------------+-----------------------------------+-----------------+
+ *  | 'X'             | '#'          | X5 X4 X3 X2 X1 X0  | '$\n' oder '$\t |
+ *  =========================================================================
  *  
- *  Details in der Befehlsliste
-*/
-
-/***************************************************************************
+ *  Command list follows below (#)
+ *  T Set time on DS3231 -- communicate by I2C
+ *  I Show info (Debug) -- Rend to Serial BT or UART
+ *  N Set on time -- For all 3 relais output on the board
+ *  F Set off time -- For all 3 relais output on the board
+ *  O Set upper sensor limit -- 12V Batterie voltage, above that voltage the light can be activated (oberesLimitSensor)
+ *  U Set lower sensor limit -- if the 12V Batterie voltage drops below this value (unteresLimitSensor), the light can#t be activated until the voltage rises above the limit defined in oberesLimitSensor
+ *  A Allow control by sensor -- default should be disabled
+ * 
+ *  X5, X4, X3, X2, X1 and X0 represent the command parameters transmitted from the app
+ * 
  * Zusammenfügen der einzelnen übertragenen char aus der App in Befehlsbuffer
- * Übergabeparameter: char aus der seriellen BT Übertragung
- * Rückgabe: uint8_t zur Anzeige ob Befehl aktiv war oder nicht
-***************************************************************************/
+ * Übergabeparameter: char aus der seriellen BT Übertragung oder per UART
+ * Rückgabe: uint8_t zur Anzeige, ob Befehl aktiv war oder nicht
+**************************************************************************
+*/
 uint8_t Commands::readCommandCharFromSerial(char CommandChar)
 {
     // static Variablen müssen initialisiert werden
@@ -54,7 +62,7 @@ uint8_t Commands::readCommandCharFromSerial(char CommandChar)
     // Prüfe, ob ein befehl anliegt
     if ((_AppBefehlBuffer[9] == 'X') && (_AppBefehlBuffer[1] == '$') && ((_AppBefehlBuffer[0] == '\n') ))
     {
-        // Vorläufig wurde was erkannt
+        // command found
         iRet = 1;
 
         //Erstellung lokale Kopie für Befehle inkl Drehung der Orientierung
@@ -65,12 +73,12 @@ uint8_t Commands::readCommandCharFromSerial(char CommandChar)
 
         switch (_AppBefehlBuffer[8])
         {
-            // einstellen der Zeit
+            // Einstellen der Zeit des DS3231
             case 'T':
                     CommandSetTime( _AppBefehl );
                     break;
             
-            // Rückgage der Zeit (Debug)
+            // Rueckgage der Zeit (Debug)
             case 'I':
                     showInfo( );
                     break;
@@ -98,6 +106,7 @@ uint8_t Commands::readCommandCharFromSerial(char CommandChar)
                     break;
 
             default:
+                // unknown command
                 iRet = 0;
                 break;
         }
@@ -107,22 +116,6 @@ uint8_t Commands::readCommandCharFromSerial(char CommandChar)
     return iRet;
 }
 
-uint8_t Commands::checkForNotZero( char *value )
-{
-    uint8_t iRes = 0;
-    for(uint8_t i = 0; i < 6; i++ )
-        iRes += *(value + 1);
-    if( iRes )
-        return 1;
-    else
-        return 0;
-}
-
-/***************************************************************************
- * Funktion aus dem App-Befehl die Uhrzeit zu setzen
- * Übergabeparameter: Array mit dem entsprechenden Befehl
- * Rückgabe: kein
-***************************************************************************/
 /***************************************************************************
  * Funktion zum Konvertieren von (hex)char in (dec)uint8_t
  * in:  hexadezimaler char Zeichen
@@ -138,6 +131,24 @@ uint8_t _hexcharToUint8_t(char hexchar)
         return hexchar - 'a' + 10;
     return -1;
 }
+
+uint8_t Commands::checkForNotZero( char *value )
+{
+    uint8_t iRes = 0;
+    for(uint8_t i = 1; i < 5; i++ )
+        iRes += _hexcharToUint8_t(*(value + i));
+    if( iRes )
+        return 1;
+    else
+        return 0;
+}
+
+/***************************************************************************
+ * Funktion aus dem App-Befehl die Uhrzeit zu setzen
+ * Übergabeparameter: Array mit dem entsprechenden Befehl
+ * Rückgabe: kein
+***************************************************************************/
+
 
 uint16_t Commands::limitseinstellen( char *c )
 {
@@ -220,8 +231,9 @@ void Commands::showInfo( void )
     else
         Serial.println("Laut Zeiteinstellung sollten die Lichter aus sein.");
 
-    if( 1 ) // Später Abfrage der Spannungsmessung
+    if( controlBySensorAllowed ) // Später Abfrage der Spannungsmessung
     {
+
         Serial.print("Oberes Sensorlimit:   "); 
         Serial.println(oberesLimitSensor);
         Serial.print("Unteres Sensorlimit:  "); 

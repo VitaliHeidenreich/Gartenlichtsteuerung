@@ -20,7 +20,7 @@ void IRAM_ATTR onTimer()
     portEXIT_CRITICAL_ISR(&timerMux);
 }
 
-/* START SETUP ************************************************************/
+/* START SETUP *****************************************************************************************************/
 void setup()
 {
     Serial.begin(115200);
@@ -36,7 +36,6 @@ void setup()
     pZeit = new Zeitmaster();
     pZeit->setTimeDate(22, 59, 49, 15, 4, 45); // ToDo: Sollte gelöscht werden, wenn die NTP Zeit bzw. App Zeiteinstellung funktioniert
 }
-
 /*************************************************************************************************************************
  * 
 **************************************************************************************************************************/
@@ -51,18 +50,22 @@ void loop()
     // Eventgetriggerte Steuerung der Bewegung und der LEDs
     if( com.compareTimeToTriggerTheLight() )
     {
-        InOut.setRelais(1,1,1);
+        // Alle Relais durchschalten
+        InOut.setRelais( 1, 1, 1 );
     }
     else
     {
+        // Wenn Lichtsensor verwendet werden soll:
         if( InOut.getSolarState() && com.controlBySensorAllowed )
-            InOut.setRelais(1,1,1);
+            InOut.setRelais( 1, 1, 1 );
         else
-            InOut.setRelais(0,0,0);
+            InOut.setRelais( 0, 0, 0 );
     }
 
-    if (Serial.available() > 0)
+    // Einlesen und Auswerten der seriellen Befehle
+    if ( Serial.available() > 0 )
     {
         com.readCommandCharFromSerial( Serial.read() );
     }
 }
+//*************************************************************************************************************************
