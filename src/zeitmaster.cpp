@@ -21,11 +21,16 @@ Zeitmaster::Zeitmaster()
         }
     }
 
-    if (myRTCDS3231.lostPower())
+    _hadLostPower = myRTCDS3231.lostPower();
+    if (_hadLostPower)
     {
-        Serial.println("RTC Batterie ist ausgefallen oder nicht vorhanden. Die Zeit wird auf Default (00:00:00) eingestellt. Bitte Batterie prüfen bzw. einbauen.\n");
-        myRTCDS3231.adjust(DateTime(2020, 5, 4, 0, 0, 0));
+        Serial.println("RTC Batterie ist ausgefallen oder nicht vorhanden. Initialzeit wird verwendet. Bitte Batterie prüfen bzw. einbauen.\n");
     }
+}
+
+bool Zeitmaster::hadLostPower() const
+{
+    return _hadLostPower;
 }
 
 /***************************************************************************

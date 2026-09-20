@@ -15,7 +15,17 @@ uint8_t Commands::controlBySensorAllowed = 0;
 
 Commands::Commands()
 {
-    //_interpreterzeitmaster = new Zeitmaster();
+    _interpreterzeitmaster = nullptr;
+}
+
+void Commands::setZeitmaster(Zeitmaster *zeitmaster)
+{
+    _interpreterzeitmaster = zeitmaster;
+}
+
+void Commands::setIO(mypins *io)
+{
+    IO = io;
 }
 
 /** =========================================================================
@@ -163,6 +173,9 @@ uint16_t Commands::limitseinstellen( char *c )
 
 void Commands::CommandSetTime(char *Uhrzeit)
 {
+    if (_interpreterzeitmaster == nullptr)
+        return;
+
     uint8_t AppHours;
     uint8_t AppMinutes;
     uint8_t AppSeconds;
@@ -198,6 +211,9 @@ void Commands::CommandSetTime(char *Uhrzeit)
 
 void Commands::showInfo( void )
 {
+    if (_interpreterzeitmaster == nullptr)
+        return;
+
     Serial.print("");
     Serial.print("---------------------\nAktuelle Zeit:  ");
     if( _interpreterzeitmaster->getHours() < 10)
@@ -231,7 +247,7 @@ void Commands::showInfo( void )
     else
         Serial.println("Laut Zeiteinstellung sollten die Lichter aus sein.");
 
-    if( controlBySensorAllowed ) // Später Abfrage der Spannungsmessung
+    if( controlBySensorAllowed && IO != nullptr ) // Später Abfrage der Spannungsmessung
     {
 
         Serial.print("Oberes Sensorlimit:   "); 
@@ -248,52 +264,72 @@ void Commands::showInfo( void )
 }
     
 
-// Return 1 if light should be on
+// Return 1 if light should be on and 0 if it should be off
+// In this function
+// on_time defines the time where te light relais will be turned on -- in the format HHMM
+// off_time defines the time where the light relais will be turned off -- in the format HHMM
+// Idea: Compare the current time (act) with on_time and off_time to determine if the light should be on or off. If on_time is greater than off_time, it means the light should be on overnight, otherwise it follows the normal schedule.
 uint8_t Commands::compareTimeToTriggerTheLight()
 {
+    if (_interpreterzeitmaster == nullptr)
+        return 0;
+
     uint8_t iRet = 0;
 
     uint16_t act = _interpreterzeitmaster->getHours()*100 + _interpreterzeitmaster->getMinutes();
-    uint16_t on = onTime.std*100 + onTime.min;
-    uint16_t off = offTime.std*100 + offTime.min;
+    uint16_t on_time = onTime.std*100 + onTime.min;
+    uint16_t off_time = offTime.std*100 + offTime.min;
 
-    // Licht brennt ueber Mitternacht
-    if( on > off )
+    // compare the on_time and off_time in 24h format -- HHMM
+    // If the ontime is greater than the off_time, it means the light should be on overnight. Otherwise, it follows the normal schedule.
+    if( on_time < off_time )
     {
-            if( (act >= on) || (off > act) )
-                iRet = 1;
-            else
-                iRet = 0;
+        iRet = (act >= on_time) && (act < off_time);
     }
-    else
+    else if( on_time > off_time )
     {
-            if( (act >= on) || (off > act) )
-                iRet = 1;
-            else
-                iRet = 0;
+        iRet = (act >= on_time) || (act < off_time);
     }
-
-    //act = 
-    // convert time to decimal values
-    
 
     return iRet;
 }
 
 void Commands::CommandSetOnTime( char  *_Time )
 {
-    //Auslesen Stunden
-    onTime.std = _hexcharToUint8_t(*_Time) * 10 + _hexcharToUint8_t(*(_Time + 1));
-    //Auslesen Minuten
-    onTime.min = _hexcharToUint8_t(*(_Time + 2)) * 10 + _hexcharToUint8_t(*(_Time + 3));
+    if (_Time == nullptr ||
+        _Time[0] < '0' || _Time[0] > '9' ||
+        _Time[1] < '0' || _Time[1] > '9' ||
+        _Time[2] < '0' || _Time[2] > '9' ||
+        _Time[3] < '0' || _Time[3] > '9')
+        return;
+
+    uint8_t hours = (_Time[0] - '0') * 10 + (_Time[1] - '0');
+    uint8_t minutes = (_Time[2] - '0') * 10 + (_Time[3] - '0');
+
+    if (hours > 23 || minutes > 59)
+        return;
+
+    onTime.std = hours;
+    onTime.min = minutes;
 }
 
 void Commands::CommandSetOffTime( char  *_Time )
 {
-    //Auslesen Stunden
-    offTime.std = _hexcharToUint8_t(*_Time) * 10 + _hexcharToUint8_t(*(_Time + 1));
-    //Auslesen Minuten
-    offTime.min = _hexcharToUint8_t(*(_Time + 2)) * 10 + _hexcharToUint8_t(*(_Time + 3));
+    if (_Time == nullptr ||
+        _Time[0] < '0' || _Time[0] > '9' ||
+        _Time[1] < '0' || _Time[1] > '9' ||
+        _Time[2] < '0' || _Time[2] > '9' ||
+        _Time[3] < '0' || _Time[3] > '9')
+        return;
+
+    uint8_t hours = (_Time[0] - '0') * 10 + (_Time[1] - '0');
+    uint8_t minutes = (_Time[2] - '0') * 10 + (_Time[3] - '0');
+
+    if (hours > 23 || minutes > 59)
+        return;
+
+    offTime.std = hours;
+    offTime.min = minutes;
 }
 
 

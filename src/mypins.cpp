@@ -20,6 +20,11 @@ mypins::mypins()
     digitalWrite(RUN_PIN, HIGH);
 }
 
+void mypins::setCommands(Commands *commands)
+{
+    cm = commands;
+}
+
 void mypins::setRelais(uint8_t R1, uint8_t R2, uint8_t R3)
 {
     if( R1 == 1 )

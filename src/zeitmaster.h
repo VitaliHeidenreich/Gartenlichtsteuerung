@@ -25,6 +25,7 @@ class Zeitmaster
 {
     public:
         Zeitmaster();
+        bool hadLostPower() const;
         
         timedate_t getTimeDate();
         void setTimeDate(timedate_t TimeDate);
@@ -54,6 +55,7 @@ class Zeitmaster
         timedate_t _TimeDate;
         RTC_DS3231 myRTCDS3231;
         DateTime myTime;
+        bool _hadLostPower;
 };
 
 #endif /* ZEITMASTER_H */

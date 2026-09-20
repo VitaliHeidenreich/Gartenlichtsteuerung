@@ -10,7 +10,7 @@ Commands com;
 Zeitmaster *pZeit;
 
 char c;
-uint8_t event = 0;
+volatile uint8_t event = 0;
 hw_timer_t * timer = NULL;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 void IRAM_ATTR onTimer()
@@ -26,6 +26,8 @@ void setup()
     Serial.begin(115200);
     Serial.println("hallo welt!");
     InOut = mypins();
+    InOut.setCommands(&com);
+    com.setIO(&InOut);
     // Timer
     timer = timerBegin(0, 80, true);
     timerAttachInterrupt(timer, &onTimer, true);
@@ -34,7 +36,9 @@ void setup()
 
     // Zeitfunktionen
     pZeit = new Zeitmaster();
-    pZeit->setTimeDate(22, 59, 49, 15, 4, 45); // ToDo: Sollte gelöscht werden, wenn die NTP Zeit bzw. App Zeiteinstellung funktioniert
+    com.setZeitmaster(pZeit);
+    if (pZeit->hadLostPower())
+        pZeit->setTimeDate(22, 59, 49, 15, 4, 45);
 }
 /*************************************************************************************************************************
  * 

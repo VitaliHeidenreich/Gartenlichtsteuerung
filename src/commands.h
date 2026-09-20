@@ -4,6 +4,7 @@
 
 #include "Arduino.h"
 #include "mypins.h"
+#include "Zeitmaster.h"
 
 #define DEBUG_APPINTERPRETER 0
 
@@ -12,6 +13,8 @@ class Commands
 public:
      //Konstruktor
      Commands();
+     void setZeitmaster(Zeitmaster *zeitmaster);
+     void setIO(mypins *io);
 
      /****************************************
      * App Befehle einlesen

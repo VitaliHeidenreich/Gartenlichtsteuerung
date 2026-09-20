@@ -5,6 +5,8 @@
 #include "config.h"
 #include "Arduino.h"
 
+class Commands;
+
 #define GET_TVSTATE (digitalRead(TVSTATE))
 #define OUT_SENSSTATE (digitalRead(ET2))
 #define IN_SENSSTATE (digitalRead(ET1))
@@ -20,10 +22,14 @@ class mypins {
         static uint8_t solarStateRes;
     public:
         mypins( );
+        void setCommands(Commands *commands);
+        // control the relays R1, R2, and R3
         void setRelais(uint8_t R1, uint8_t R2, uint8_t R3);
+        // calculate and return the current solar state -- not used at the moment
         uint8_t calcSolarState();
+        // return the current solar state -- not used at the moment
         uint8_t getSolarState();
         static uint32_t medianSensVal;
 };
 
-#endif /* MYHEADER_H */
+#endif /* MYPINS_H */
