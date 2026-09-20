@@ -2,13 +2,15 @@
 #include "config.h"
 #include "Zeitmaster.h"
 #include "mypins.h"
+#include "BluetoothSerial.h"
 
+extern BluetoothSerial SerialBT;
 
 Zeitmaster *_interpreterzeitmaster;
 mypins *IO;
 
-timeSet Commands::onTime = {22,10};
-timeSet Commands::offTime = {5,1};
+timeSet Commands::onTime[3] = {{22,10}, {22,10}, {22,10}};
+timeSet Commands::offTime[3] = {{5,1}, {5,1}, {5,1}};
 uint16_t Commands::unteresLimitSensor = 800;
 uint16_t Commands::oberesLimitSensor = 2200;
 uint8_t Commands::controlBySensorAllowed = 0;
@@ -41,6 +43,8 @@ void Commands::setIO(mypins *io)
  *  I Show info (Debug) -- Rend to Serial BT or UART
  *  N Set on time -- For all 3 relais output on the board
  *  F Set off time -- For all 3 relais output on the board
+ *  B/C/D Set on time for relais 1/2/3
+ *  E/G/H Set off time for relais 1/2/3
  *  O Set upper sensor limit -- 12V Batterie voltage, above that voltage the light can be activated (oberesLimitSensor)
  *  U Set lower sensor limit -- if the 12V Batterie voltage drops below this value (unteresLimitSensor), the light can#t be activated until the voltage rises above the limit defined in oberesLimitSensor
  *  A Allow control by sensor -- default should be disabled
@@ -101,6 +105,30 @@ uint8_t Commands::readCommandCharFromSerial(char CommandChar)
             // Einstellen der Ausschaltzeit
             case 'F':
                     CommandSetOffTime( _AppBefehl );
+                    break;
+
+                case 'B':
+                    CommandSetOnTime( 0, _AppBefehl );
+                    break;
+
+                case 'C':
+                    CommandSetOnTime( 1, _AppBefehl );
+                    break;
+
+                case 'D':
+                    CommandSetOnTime( 2, _AppBefehl );
+                    break;
+
+                case 'E':
+                    CommandSetOffTime( 0, _AppBefehl );
+                    break;
+
+                case 'G':
+                    CommandSetOffTime( 1, _AppBefehl );
+                    break;
+
+                case 'H':
+                    CommandSetOffTime( 2, _AppBefehl );
                     break;
 
             case 'O':
@@ -214,52 +242,65 @@ void Commands::showInfo( void )
     if (_interpreterzeitmaster == nullptr)
         return;
 
-    Serial.print("");
-    Serial.print("---------------------\nAktuelle Zeit:  ");
+    SerialBT.print("");
+    SerialBT.print("---------------------\nAktuelle Zeit:  ");
     if( _interpreterzeitmaster->getHours() < 10)
-        Serial.print('0');
-    Serial.print(_interpreterzeitmaster->getHours());Serial.print(":");
+        SerialBT.print('0');
+    SerialBT.print(_interpreterzeitmaster->getHours());SerialBT.print(":");
     if( _interpreterzeitmaster->getMinutes() < 10)
-        Serial.print('0');
-    Serial.print(_interpreterzeitmaster->getMinutes());Serial.print(":");
+        SerialBT.print('0');
+    SerialBT.print(_interpreterzeitmaster->getMinutes());SerialBT.print(":");
     if( _interpreterzeitmaster->getSeconds() < 10)
-        Serial.print('0');
-    Serial.println(_interpreterzeitmaster->getSeconds());
+        SerialBT.print('0');
+    SerialBT.println(_interpreterzeitmaster->getSeconds());
 
-    Serial.print("Einschaltzeit:  ");
-    if( onTime.std < 10)
-        Serial.print('0');
-    Serial.print(onTime.std);Serial.print(":");
-    if( onTime.min < 10)
-        Serial.print('0');
-    Serial.print(onTime.min); Serial.println(":00");
+    SerialBT.print("Einschaltzeit:  ");
+    for (uint8_t relais = 0; relais < 3; relais++)
+    {
+        SerialBT.print("Relais ");
+        SerialBT.print(relais + 1);
+        SerialBT.print(" Einschaltzeit: ");
+        if( onTime[relais].std < 10)
+            SerialBT.print('0');
+        SerialBT.print(onTime[relais].std);SerialBT.print(":");
+        if( onTime[relais].min < 10)
+            SerialBT.print('0');
+        SerialBT.print(onTime[relais].min); SerialBT.println(":00");
 
-    Serial.print("Ausschaltzeit: ");
-    if( offTime.std < 10)
-        Serial.print('0');
-    Serial.print(offTime.std);Serial.print(":");
-    if( offTime.min < 10)
-        Serial.print('0');
-    Serial.print(offTime.min); Serial.println(":00");
+        SerialBT.print("Relais ");
+        SerialBT.print(relais + 1);
+        SerialBT.print(" Ausschaltzeit: ");
+        if( offTime[relais].std < 10)
+            SerialBT.print('0');
+        SerialBT.print(offTime[relais].std);SerialBT.print(":");
+        if( offTime[relais].min < 10)
+            SerialBT.print('0');
+        SerialBT.print(offTime[relais].min); SerialBT.println(":00");
+    }
 
-    if(compareTimeToTriggerTheLight())
-        Serial.println("Laut Zeiteinstellung sollten die Lichter an sein.");
-    else
-        Serial.println("Laut Zeiteinstellung sollten die Lichter aus sein.");
+    for (uint8_t relais = 1; relais <= 3; relais++)
+    {
+        SerialBT.print("Relais ");
+        SerialBT.print(relais);
+        if(compareTimeToTriggerTheLight(relais))
+            SerialBT.println(" sollte laut Zeiteinstellung an sein.");
+        else
+            SerialBT.println(" sollte laut Zeiteinstellung aus sein.");
+    }
 
     if( controlBySensorAllowed && IO != nullptr ) // Später Abfrage der Spannungsmessung
     {
 
-        Serial.print("Oberes Sensorlimit:   "); 
-        Serial.println(oberesLimitSensor);
-        Serial.print("Unteres Sensorlimit:  "); 
-        Serial.println(unteresLimitSensor);
-        Serial.print("Aktueller Sensorwert: "); Serial.println(IO->medianSensVal);
+        SerialBT.print("Oberes Sensorlimit:   "); 
+        SerialBT.println(oberesLimitSensor);
+        SerialBT.print("Unteres Sensorlimit:  "); 
+        SerialBT.println(unteresLimitSensor);
+        SerialBT.print("Aktueller Sensorwert: "); SerialBT.println(IO->medianSensVal);
         if( IO->getSolarState() )
-            Serial.println("Laut Sensor sollten die Lichter an sein.");
+            SerialBT.println("Laut Sensor sollten die Lichter an sein.");
         else
-            Serial.println("Laut Sensor sollten die Lichter aus sein.");
-        Serial.println("---------------------");
+            SerialBT.println("Laut Sensor sollten die Lichter aus sein.");
+        SerialBT.println("---------------------");
     }
 }
     
@@ -271,31 +312,46 @@ void Commands::showInfo( void )
 // Idea: Compare the current time (act) with on_time and off_time to determine if the light should be on or off. If on_time is greater than off_time, it means the light should be on overnight, otherwise it follows the normal schedule.
 uint8_t Commands::compareTimeToTriggerTheLight()
 {
+    return compareTimeToTriggerTheLight(1) &&
+           compareTimeToTriggerTheLight(2) &&
+           compareTimeToTriggerTheLight(3);
+}
+
+uint8_t Commands::compareTimeToTriggerTheLight(uint8_t relais)
+{
     if (_interpreterzeitmaster == nullptr)
         return 0;
 
-    uint8_t iRet = 0;
+    if (relais < 1 || relais > 3)
+        return 0;
+
+    uint8_t index = relais - 1;
 
     uint16_t act = _interpreterzeitmaster->getHours()*100 + _interpreterzeitmaster->getMinutes();
-    uint16_t on_time = onTime.std*100 + onTime.min;
-    uint16_t off_time = offTime.std*100 + offTime.min;
+    uint16_t on_time = onTime[index].std*100 + onTime[index].min;
+    uint16_t off_time = offTime[index].std*100 + offTime[index].min;
 
     // compare the on_time and off_time in 24h format -- HHMM
     // If the ontime is greater than the off_time, it means the light should be on overnight. Otherwise, it follows the normal schedule.
     if( on_time < off_time )
-    {
-        iRet = (act >= on_time) && (act < off_time);
-    }
+        return (act >= on_time) && (act < off_time);
     else if( on_time > off_time )
-    {
-        iRet = (act >= on_time) || (act < off_time);
-    }
+        return (act >= on_time) || (act < off_time);
 
-    return iRet;
+    return 0;
 }
 
 void Commands::CommandSetOnTime( char  *_Time )
 {
+    for (uint8_t relais = 0; relais < 3; relais++)
+        CommandSetOnTime(relais, _Time);
+}
+
+void Commands::CommandSetOnTime(uint8_t relais, char *_Time)
+{
+    if (relais >= 3)
+        return;
+
     if (_Time == nullptr ||
         _Time[0] < '0' || _Time[0] > '9' ||
         _Time[1] < '0' || _Time[1] > '9' ||
@@ -309,12 +365,21 @@ void Commands::CommandSetOnTime( char  *_Time )
     if (hours > 23 || minutes > 59)
         return;
 
-    onTime.std = hours;
-    onTime.min = minutes;
+    onTime[relais].std = hours;
+    onTime[relais].min = minutes;
 }
 
 void Commands::CommandSetOffTime( char  *_Time )
 {
+    for (uint8_t relais = 0; relais < 3; relais++)
+        CommandSetOffTime(relais, _Time);
+}
+
+void Commands::CommandSetOffTime(uint8_t relais, char *_Time)
+{
+    if (relais >= 3)
+        return;
+
     if (_Time == nullptr ||
         _Time[0] < '0' || _Time[0] > '9' ||
         _Time[1] < '0' || _Time[1] > '9' ||
@@ -328,8 +393,8 @@ void Commands::CommandSetOffTime( char  *_Time )
     if (hours > 23 || minutes > 59)
         return;
 
-    offTime.std = hours;
-    offTime.min = minutes;
+    offTime[relais].std = hours;
+    offTime[relais].min = minutes;
 }
 
 

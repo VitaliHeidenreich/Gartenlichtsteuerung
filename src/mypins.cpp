@@ -25,7 +25,7 @@ void mypins::setCommands(Commands *commands)
     cm = commands;
 }
 
-void mypins::setRelais(uint8_t R1, uint8_t R2, uint8_t R3)
+void mypins::setAllRelais(uint8_t R1, uint8_t R2, uint8_t R3)
 {
     if( R1 == 1 )
         digitalWrite( RELAIS_1, HIGH);
@@ -41,6 +41,21 @@ void mypins::setRelais(uint8_t R1, uint8_t R2, uint8_t R3)
         digitalWrite( RELAIS_3, HIGH);
     else
         digitalWrite( RELAIS_3, LOW);
+}
+
+void mypins::setRelais1(uint8_t state)
+{
+    digitalWrite(RELAIS_1, state == 1 ? HIGH : LOW);
+}
+
+void mypins::setRelais2(uint8_t state)
+{
+    digitalWrite(RELAIS_2, state == 1 ? HIGH : LOW);
+}
+
+void mypins::setRelais3(uint8_t state)
+{
+    digitalWrite(RELAIS_3, state == 1 ? HIGH : LOW);
 }
 
 uint8_t mypins::calcSolarState()

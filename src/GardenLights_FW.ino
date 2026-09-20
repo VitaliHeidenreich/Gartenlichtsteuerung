@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "BluetoothSerial.h"
 #include "config.h"
 #include "mypins.h"
 #include "commands.h"
@@ -8,6 +9,7 @@
 mypins InOut;
 Commands com;
 Zeitmaster *pZeit;
+BluetoothSerial SerialBT;
 
 char c;
 volatile uint8_t event = 0;
@@ -25,6 +27,9 @@ void setup()
 {
     Serial.begin(115200);
     Serial.println("hallo welt!");
+    SerialBT.setPin(BLUETOOTH_PIN);
+    SerialBT.begin(BLUETOOTH_DEVICE_NAME);
+    Serial.println("Bluetooth gestartet: Gartenlichtsteuerung");
     InOut = mypins();
     InOut.setCommands(&com);
     com.setIO(&InOut);
@@ -51,25 +56,25 @@ void loop()
         event = 0;
     }
     
-    // Eventgetriggerte Steuerung der Bewegung und der LEDs
-    if( com.compareTimeToTriggerTheLight() )
+    // Eventgetriggerte Steuerung der Relais und LEDs
+    for (uint8_t relais = 1; relais <= 3; relais++)
     {
-        // Alle Relais durchschalten
-        InOut.setRelais( 1, 1, 1 );
-    }
-    else
-    {
-        // Wenn Lichtsensor verwendet werden soll:
-        if( InOut.getSolarState() && com.controlBySensorAllowed )
-            InOut.setRelais( 1, 1, 1 );
+        uint8_t relaisOn = com.compareTimeToTriggerTheLight(relais);
+        if (!relaisOn && InOut.getSolarState() && com.controlBySensorAllowed)
+            relaisOn = 1;
+
+        if (relais == 1)
+            InOut.setRelais1(relaisOn);
+        else if (relais == 2)
+            InOut.setRelais2(relaisOn);
         else
-            InOut.setRelais( 0, 0, 0 );
+            InOut.setRelais3(relaisOn);
     }
 
     // Einlesen und Auswerten der seriellen Befehle
-    if ( Serial.available() > 0 )
+    if ( SerialBT.available() > 0 )
     {
-        com.readCommandCharFromSerial( Serial.read() );
+        com.readCommandCharFromSerial( SerialBT.read() );
     }
 }
 //*************************************************************************************************************************

@@ -24,7 +24,10 @@ class mypins {
         mypins( );
         void setCommands(Commands *commands);
         // control the relays R1, R2, and R3
-        void setRelais(uint8_t R1, uint8_t R2, uint8_t R3);
+        void setAllRelais(uint8_t R1, uint8_t R2, uint8_t R3);
+        void setRelais1(uint8_t state);
+        void setRelais2(uint8_t state);
+        void setRelais3(uint8_t state);
         // calculate and return the current solar state -- not used at the moment
         uint8_t calcSolarState();
         // return the current solar state -- not used at the moment

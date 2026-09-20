@@ -9,6 +9,8 @@
  * Serielle Verbindung
  **************************************************************************/
 #define SERIAL_SPEED 115200
+#define BLUETOOTH_DEVICE_NAME "Gartenlichtsteuerung"
+#define BLUETOOTH_PIN "0175"
 
 //Relais Ports
 #define RELAIS_1        19      
