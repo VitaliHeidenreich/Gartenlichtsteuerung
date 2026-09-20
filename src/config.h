@@ -17,6 +17,10 @@
 #define RELAIS_2        18
 #define RELAIS_3        5
 
+#define SWITCH_1        17
+#define SWITCH_2        16
+#define SWITCH_3        4
+
 //#define BATTERYVOLTAGE  
 
 #define RUN_PIN         12

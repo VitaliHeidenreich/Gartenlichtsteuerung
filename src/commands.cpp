@@ -11,6 +11,8 @@ mypins *IO;
 
 timeSet Commands::onTime[3] = {{22,10}, {22,10}, {22,10}};
 timeSet Commands::offTime[3] = {{5,1}, {5,1}, {5,1}};
+bool Commands::switchControl[3] = {false, false, false};
+uint32_t Commands::switchDurationMs[3] = {5000, 5000, 5000};
 uint16_t Commands::unteresLimitSensor = 800;
 uint16_t Commands::oberesLimitSensor = 2200;
 uint8_t Commands::controlBySensorAllowed = 0;
@@ -45,6 +47,8 @@ void Commands::setIO(mypins *io)
  *  F Set off time -- For all 3 relais output on the board
  *  B/C/D Set on time for relais 1/2/3
  *  E/G/H Set off time for relais 1/2/3
+ *  J/K/L Set switch impulse duration for relais 1/2/3 in seconds
+ *  M Set control mode: first 3 parameters, 0=time and 1=switch
  *  O Set upper sensor limit -- 12V Batterie voltage, above that voltage the light can be activated (oberesLimitSensor)
  *  U Set lower sensor limit -- if the 12V Batterie voltage drops below this value (unteresLimitSensor), the light can#t be activated until the voltage rises above the limit defined in oberesLimitSensor
  *  A Allow control by sensor -- default should be disabled
@@ -130,6 +134,22 @@ uint8_t Commands::readCommandCharFromSerial(char CommandChar)
                 case 'H':
                     CommandSetOffTime( 2, _AppBefehl );
                     break;
+
+                    case 'J':
+                        CommandSetSwitchDuration( 0, _AppBefehl );
+                        break;
+
+                    case 'K':
+                        CommandSetSwitchDuration( 1, _AppBefehl );
+                        break;
+
+                    case 'L':
+                        CommandSetSwitchDuration( 2, _AppBefehl );
+                        break;
+
+                    case 'M':
+                        CommandSetControlMode( _AppBefehl );
+                        break;
 
             case 'O':
                     oberesLimitSensor = limitseinstellen( _AppBefehl );
@@ -317,6 +337,19 @@ uint8_t Commands::compareTimeToTriggerTheLight()
            compareTimeToTriggerTheLight(3);
 }
 
+bool Commands::usesSwitchControl(uint8_t relais) const
+{
+    return relais >= 1 && relais <= 3 && switchControl[relais - 1];
+}
+
+uint32_t Commands::getSwitchDurationMs(uint8_t relais) const
+{
+    if (relais < 1 || relais > 3)
+        return 0;
+
+    return switchDurationMs[relais - 1];
+}
+
 uint8_t Commands::compareTimeToTriggerTheLight(uint8_t relais)
 {
     if (_interpreterzeitmaster == nullptr)
@@ -395,6 +428,37 @@ void Commands::CommandSetOffTime(uint8_t relais, char *_Time)
 
     offTime[relais].std = hours;
     offTime[relais].min = minutes;
+}
+
+void Commands::CommandSetSwitchDuration(uint8_t relais, char *_Duration)
+{
+    if (relais >= 3)
+        return;
+
+    uint32_t seconds = 0;
+    for (uint8_t i = 0; i < 6; i++)
+    {
+        if (_Duration[i] < '0' || _Duration[i] > '9')
+            return;
+        seconds = seconds * 10 + (_Duration[i] - '0');
+    }
+
+    if (seconds == 0)
+        return;
+
+    switchDurationMs[relais] = seconds * 1000UL;
+}
+
+void Commands::CommandSetControlMode(char *_Mode)
+{
+    for (uint8_t relais = 0; relais < 3; relais++)
+    {
+        if (_Mode[relais] != '0' && _Mode[relais] != '1')
+            return;
+    }
+
+    for (uint8_t relais = 0; relais < 3; relais++)
+        switchControl[relais] = (_Mode[relais] == '1');
 }
 
 

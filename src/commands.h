@@ -22,6 +22,8 @@ public:
      uint8_t readCommandCharFromSerial(char CommandChar);
      uint8_t compareTimeToTriggerTheLight(); 
      uint8_t compareTimeToTriggerTheLight(uint8_t relais);
+     bool usesSwitchControl(uint8_t relais) const;
+     uint32_t getSwitchDurationMs(uint8_t relais) const;
 
      void CommandSetOnTime( char  *_Time );
      void CommandSetOffTime( char  *_Time );
@@ -37,9 +39,13 @@ private:
      void GetTime( timeSet t );
      static timeSet onTime[3];
      static timeSet offTime[3];
+     static bool switchControl[3];
+     static uint32_t switchDurationMs[3];
      uint8_t checkForNotZero( char *value );
      void CommandSetOnTime(uint8_t relais, char *_Time);
      void CommandSetOffTime(uint8_t relais, char *_Time);
+     void CommandSetSwitchDuration(uint8_t relais, char *_Duration);
+     void CommandSetControlMode(char *_Mode);
      
      uint16_t limitseinstellen( char *c );
 
