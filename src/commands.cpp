@@ -21,6 +21,8 @@ uint32_t Commands::switchDurationMs[3] = {600000UL, 600000UL, 600000UL}; // 10 M
 uint16_t Commands::unteresLimitSensor = 800;
 uint16_t Commands::oberesLimitSensor = 2200;
 uint8_t Commands::controlBySensorAllowed = 0;
+PersistentSettings Commands::lastSavedSettings;
+bool Commands::settingsValid = false;
 
 Commands::Commands()
 {
@@ -46,23 +48,26 @@ void Commands::setIO(mypins *io)
 void Commands::loadSettings()
 {
     PersistentSettings s;
-    if (!SettingsStore::load(s))
-        return;
+    if (SettingsStore::load(s))
+    {
+        memcpy(switchDurationMs, s.switchDurationMs, sizeof(switchDurationMs));
+        memcpy(onTime, s.onTime, sizeof(onTime));
+        memcpy(offTime, s.offTime, sizeof(offTime));
+        memcpy(monthOnTime, s.monthOnTime, sizeof(monthOnTime));
+        memcpy(monthOffTime, s.monthOffTime, sizeof(monthOffTime));
+        memcpy(controlModeRelais, s.controlModeRelais, sizeof(controlModeRelais));
+        unteresLimitSensor = s.unteresLimitSensor;
+        oberesLimitSensor = s.oberesLimitSensor;
+        controlBySensorAllowed = s.controlBySensorAllowed;
+    }
 
-    memcpy(switchDurationMs, s.switchDurationMs, sizeof(switchDurationMs));
-    memcpy(onTime, s.onTime, sizeof(onTime));
-    memcpy(offTime, s.offTime, sizeof(offTime));
-    memcpy(monthOnTime, s.monthOnTime, sizeof(monthOnTime));
-    memcpy(monthOffTime, s.monthOffTime, sizeof(monthOffTime));
-    memcpy(controlModeRelais, s.controlModeRelais, sizeof(controlModeRelais));
-    unteresLimitSensor = s.unteresLimitSensor;
-    oberesLimitSensor = s.oberesLimitSensor;
-    controlBySensorAllowed = s.controlBySensorAllowed;
+    // Referenzstand: Defaults oder geladene Werte gelten als gespeichert bzw. zu speichern.
+    buildSnapshot(lastSavedSettings);
+    settingsValid = SettingsStore::save(lastSavedSettings);
 }
 
-void Commands::saveSettings()
+void Commands::buildSnapshot(PersistentSettings &s)
 {
-    PersistentSettings s;
     memset(&s, 0, sizeof(s));
     memcpy(s.switchDurationMs, switchDurationMs, sizeof(switchDurationMs));
     memcpy(s.onTime, onTime, sizeof(onTime));
@@ -73,7 +78,19 @@ void Commands::saveSettings()
     s.unteresLimitSensor = unteresLimitSensor;
     s.oberesLimitSensor = oberesLimitSensor;
     s.controlBySensorAllowed = controlBySensorAllowed;
-    SettingsStore::save(s);
+}
+
+void Commands::saveSettingsIfChanged()
+{
+    PersistentSettings s;
+    buildSnapshot(s);
+
+    if (settingsValid && memcmp(&s, &lastSavedSettings, sizeof(s)) == 0)
+        return;
+
+    // Bei Fehlschlag wird beim nächsten Aufruf erneut versucht.
+    settingsValid = SettingsStore::save(s);
+    lastSavedSettings = s;
 }
 
 /** =========================================================================
@@ -232,19 +249,16 @@ uint8_t Commands::readCommandCharFromSerial(char CommandChar)
             // O: Oberen Grenzwert des Sensors einstellen.
             case 'O':
                 oberesLimitSensor = limitseinstellen( _AppBefehl );
-                saveSettings();
                 break;
 
             // U: Unteren Grenzwert des Sensors einstellen.
             case 'U':
                 unteresLimitSensor = limitseinstellen( _AppBefehl );
-                saveSettings();
                 break;
             
             // A: Sensorsteuerung aktivieren (Wert 0 deaktiviert sie).
             case 'A':
                 controlBySensorAllowed = checkForNotZero( _AppBefehl );
-                saveSettings();
                 break;
 
             default:
@@ -538,7 +552,6 @@ void Commands::CommandSetOnTime(uint8_t relais, char *_Time)
     onTime[relais].min = minutes;
     for (uint8_t m = 0; m < 12; m++)
         monthOnTime[relais][m] = onTime[relais];
-    saveSettings();
 }
 
 void Commands::CommandSetOffTime( char  *_Time )
@@ -569,7 +582,6 @@ void Commands::CommandSetOffTime(uint8_t relais, char *_Time)
     offTime[relais].min = minutes;
     for (uint8_t m = 0; m < 12; m++)
         monthOffTime[relais][m] = offTime[relais];
-    saveSettings();
 }
 
 void Commands::CommandSetSwitchDuration(uint8_t relais, char *_Duration)
@@ -589,7 +601,6 @@ void Commands::CommandSetSwitchDuration(uint8_t relais, char *_Duration)
         return;
 
     switchDurationMs[relais] = seconds * 1000UL;
-    saveSettings();
 }
 
 void Commands::CommandSetControlMode(char *_Mode)
@@ -602,7 +613,6 @@ void Commands::CommandSetControlMode(char *_Mode)
 
     for (uint8_t relais = 0; relais < 3; relais++)
         controlModeRelais[relais] = _Mode[relais] - '0';
-    saveSettings();
 }
 
 // Parameter: MMHHMM
@@ -625,7 +635,6 @@ void Commands::CommandSetMonthTime(uint8_t relais, bool isOn, char *_Param)
     timeSet &t = isOn ? monthOnTime[relais][month - 1] : monthOffTime[relais][month - 1];
     t.std = hours;
     t.min = minutes;
-    saveSettings();
 }
 
 

@@ -56,6 +56,7 @@ void loop()
     if( event )
     {
         InOut.calcSolarState();
+        com.saveSettingsIfChanged();
 
         // Eventgetriggerte Steuerung der Relais und LEDs
         for (uint8_t relais = 1; relais <= 3; relais++)

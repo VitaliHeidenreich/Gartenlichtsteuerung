@@ -5,6 +5,7 @@
 #include "Arduino.h"
 #include "mypins.h"
 #include "Zeitmaster.h"
+#include "settingsstore.h"
 
 #define DEBUG_APPINTERPRETER 0
 
@@ -21,9 +22,9 @@ public:
      void setZeitmaster(Zeitmaster *zeitmaster);
      void setIO(mypins *io);
 
-     // Einstellungen aus dem nichtflüchtigen Speicher laden bzw. dorthin schreiben
+     // Einstellungen beim Start laden; Änderungen danach automatisch speichern
      void loadSettings();
-     void saveSettings();
+     void saveSettingsIfChanged();
 
      /****************************************
      * App Befehle einlesen
@@ -49,6 +50,9 @@ public:
      static uint8_t controlBySensorAllowed;
 
 private:
+     void buildSnapshot(PersistentSettings &s);
+     static PersistentSettings lastSavedSettings;
+     static bool settingsValid;
      void CommandSetTime( char *Uhrzeit );
      void showInfo( void );
      void GetTime( timeSet t );
