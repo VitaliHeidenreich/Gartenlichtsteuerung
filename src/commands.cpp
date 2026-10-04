@@ -2,6 +2,7 @@
 #include "config.h"
 #include "Zeitmaster.h"
 #include "mypins.h"
+#include "settingsstore.h"
 #include "BluetoothSerial.h"
 
 extern BluetoothSerial SerialBT;
@@ -9,8 +10,8 @@ extern BluetoothSerial SerialBT;
 Zeitmaster *_interpreterzeitmaster;
 mypins *IO;
 
-timeSet Commands::onTime[3] = {{22,10}, {22,10}, {22,10}};
-timeSet Commands::offTime[3] = {{5,1}, {5,1}, {5,1}};
+timeSet Commands::onTime[3] = {{21,00}, {21,00}, {21,00}};
+timeSet Commands::offTime[3] = {{3,0}, {3,0}, {3,0}};
 uint8_t Commands::controlModeRelais[3] = {CONTROL_MODE_MONTH_TIME, CONTROL_MODE_MONTH_TIME, CONTROL_MODE_MONTH_TIME};
 timeSet Commands::monthOnTime[3][12];
 timeSet Commands::monthOffTime[3][12];
@@ -40,6 +41,39 @@ void Commands::setZeitmaster(Zeitmaster *zeitmaster)
 void Commands::setIO(mypins *io)
 {
     IO = io;
+}
+
+void Commands::loadSettings()
+{
+    PersistentSettings s;
+    if (!SettingsStore::load(s))
+        return;
+
+    memcpy(switchDurationMs, s.switchDurationMs, sizeof(switchDurationMs));
+    memcpy(onTime, s.onTime, sizeof(onTime));
+    memcpy(offTime, s.offTime, sizeof(offTime));
+    memcpy(monthOnTime, s.monthOnTime, sizeof(monthOnTime));
+    memcpy(monthOffTime, s.monthOffTime, sizeof(monthOffTime));
+    memcpy(controlModeRelais, s.controlModeRelais, sizeof(controlModeRelais));
+    unteresLimitSensor = s.unteresLimitSensor;
+    oberesLimitSensor = s.oberesLimitSensor;
+    controlBySensorAllowed = s.controlBySensorAllowed;
+}
+
+void Commands::saveSettings()
+{
+    PersistentSettings s;
+    memset(&s, 0, sizeof(s));
+    memcpy(s.switchDurationMs, switchDurationMs, sizeof(switchDurationMs));
+    memcpy(s.onTime, onTime, sizeof(onTime));
+    memcpy(s.offTime, offTime, sizeof(offTime));
+    memcpy(s.monthOnTime, monthOnTime, sizeof(monthOnTime));
+    memcpy(s.monthOffTime, monthOffTime, sizeof(monthOffTime));
+    memcpy(s.controlModeRelais, controlModeRelais, sizeof(controlModeRelais));
+    s.unteresLimitSensor = unteresLimitSensor;
+    s.oberesLimitSensor = oberesLimitSensor;
+    s.controlBySensorAllowed = controlBySensorAllowed;
+    SettingsStore::save(s);
 }
 
 /** =========================================================================
@@ -198,16 +232,19 @@ uint8_t Commands::readCommandCharFromSerial(char CommandChar)
             // O: Oberen Grenzwert des Sensors einstellen.
             case 'O':
                 oberesLimitSensor = limitseinstellen( _AppBefehl );
+                saveSettings();
                 break;
 
             // U: Unteren Grenzwert des Sensors einstellen.
             case 'U':
                 unteresLimitSensor = limitseinstellen( _AppBefehl );
+                saveSettings();
                 break;
             
             // A: Sensorsteuerung aktivieren (Wert 0 deaktiviert sie).
             case 'A':
                 controlBySensorAllowed = checkForNotZero( _AppBefehl );
+                saveSettings();
                 break;
 
             default:
@@ -501,6 +538,7 @@ void Commands::CommandSetOnTime(uint8_t relais, char *_Time)
     onTime[relais].min = minutes;
     for (uint8_t m = 0; m < 12; m++)
         monthOnTime[relais][m] = onTime[relais];
+    saveSettings();
 }
 
 void Commands::CommandSetOffTime( char  *_Time )
@@ -531,6 +569,7 @@ void Commands::CommandSetOffTime(uint8_t relais, char *_Time)
     offTime[relais].min = minutes;
     for (uint8_t m = 0; m < 12; m++)
         monthOffTime[relais][m] = offTime[relais];
+    saveSettings();
 }
 
 void Commands::CommandSetSwitchDuration(uint8_t relais, char *_Duration)
@@ -550,6 +589,7 @@ void Commands::CommandSetSwitchDuration(uint8_t relais, char *_Duration)
         return;
 
     switchDurationMs[relais] = seconds * 1000UL;
+    saveSettings();
 }
 
 void Commands::CommandSetControlMode(char *_Mode)
@@ -562,6 +602,7 @@ void Commands::CommandSetControlMode(char *_Mode)
 
     for (uint8_t relais = 0; relais < 3; relais++)
         controlModeRelais[relais] = _Mode[relais] - '0';
+    saveSettings();
 }
 
 // Parameter: MMHHMM
@@ -584,6 +625,7 @@ void Commands::CommandSetMonthTime(uint8_t relais, bool isOn, char *_Param)
     timeSet &t = isOn ? monthOnTime[relais][month - 1] : monthOffTime[relais][month - 1];
     t.std = hours;
     t.min = minutes;
+    saveSettings();
 }
 
 

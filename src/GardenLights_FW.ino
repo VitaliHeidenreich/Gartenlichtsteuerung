@@ -34,6 +34,7 @@ void setup()
     InOut.setCommands(&com);
     com.setIO(&InOut);
     com.initSwitches();
+    com.loadSettings();
     // Timer
     timer = timerBegin(0, 80, true);
     timerAttachInterrupt(timer, &onTimer, true);

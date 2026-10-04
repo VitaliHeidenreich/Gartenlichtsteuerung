@@ -21,6 +21,10 @@ public:
      void setZeitmaster(Zeitmaster *zeitmaster);
      void setIO(mypins *io);
 
+     // Einstellungen aus dem nichtflüchtigen Speicher laden bzw. dorthin schreiben
+     void loadSettings();
+     void saveSettings();
+
      /****************************************
      * App Befehle einlesen
      ***************************************/
