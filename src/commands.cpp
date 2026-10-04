@@ -11,8 +11,12 @@ mypins *IO;
 
 timeSet Commands::onTime[3] = {{22,10}, {22,10}, {22,10}};
 timeSet Commands::offTime[3] = {{5,1}, {5,1}, {5,1}};
-bool Commands::switchControl[3] = {false, false, false};
-uint32_t Commands::switchDurationMs[3] = {5000, 5000, 5000};
+uint8_t Commands::controlModeRelais[3] = {CONTROL_MODE_MONTH_TIME, CONTROL_MODE_MONTH_TIME, CONTROL_MODE_MONTH_TIME};
+timeSet Commands::monthOnTime[3][12];
+timeSet Commands::monthOffTime[3][12];
+uint32_t Commands::switchPulseUntil[3] = {0, 0, 0};
+uint8_t Commands::lastSwitchState[3] = {HIGH, HIGH, HIGH};
+uint32_t Commands::switchDurationMs[3] = {600000UL, 600000UL, 600000UL}; // 10 Minuten
 uint16_t Commands::unteresLimitSensor = 800;
 uint16_t Commands::oberesLimitSensor = 2200;
 uint8_t Commands::controlBySensorAllowed = 0;
@@ -20,6 +24,12 @@ uint8_t Commands::controlBySensorAllowed = 0;
 Commands::Commands()
 {
     _interpreterzeitmaster = nullptr;
+    for (uint8_t r = 0; r < 3; r++)
+        for (uint8_t m = 0; m < 12; m++)
+        {
+            monthOnTime[r][m] = onTime[r];
+            monthOffTime[r][m] = offTime[r];
+        }
 }
 
 void Commands::setZeitmaster(Zeitmaster *zeitmaster)
@@ -48,7 +58,9 @@ void Commands::setIO(mypins *io)
  *  B/C/D Set on time for relais 1/2/3
  *  E/G/H Set off time for relais 1/2/3
  *  J/K/L Set switch impulse duration for relais 1/2/3 in seconds
- *  M Set control mode: first 3 parameters, 0=time and 1=switch
+ *  M Set control mode: first 3 parameters (relais 1..3), 0=switch (10 min), 1=always on, 2=time range per month
+ *  P/Q/R Set on time per month for relais 1/2/3: MMHHMM (MM = month 01..12)
+ *  S/V/W Set off time per month for relais 1/2/3: MMHHMM (MM = month 01..12)
  *  O Set upper sensor limit -- 12V Batterie voltage, above that voltage the light can be activated (oberesLimitSensor)
  *  U Set lower sensor limit -- if the 12V Batterie voltage drops below this value (unteresLimitSensor), the light can#t be activated until the voltage rises above the limit defined in oberesLimitSensor
  *  A Allow control by sensor -- default should be disabled
@@ -91,80 +103,115 @@ uint8_t Commands::readCommandCharFromSerial(char CommandChar)
 
         switch (_AppBefehlBuffer[8])
         {
-            // Einstellen der Zeit des DS3231
+            // T: Uhrzeit der DS3231-Echtzeituhr einstellen.
             case 'T':
-                    CommandSetTime( _AppBefehl );
-                    break;
+                CommandSetTime( _AppBefehl );
+                break;
             
-            // Rueckgage der Zeit (Debug)
+            // I: Aktuelle Zeit, Schaltzeiten und Sensorwerte ausgeben.
             case 'I':
-                    showInfo( );
-                    break;
+                showInfo( );
+                break;
 
-            // Einstellen der Einschaltzeit
+            // N: Einschaltzeit für alle drei Relais einstellen.
             case 'N':
-                    CommandSetOnTime( _AppBefehl );
-                    break;
+                CommandSetOnTime( _AppBefehl );
+                break;
 
-            // Einstellen der Ausschaltzeit
+            // F: Ausschaltzeit für alle drei Relais einstellen.
             case 'F':
-                    CommandSetOffTime( _AppBefehl );
-                    break;
+                CommandSetOffTime( _AppBefehl );
+                break;
 
-                case 'B':
-                    CommandSetOnTime( 0, _AppBefehl );
-                    break;
+            // B: Einschaltzeit für Relais 1 einstellen.
+            case 'B':
+                CommandSetOnTime( 0, _AppBefehl );
+                break;
 
-                case 'C':
-                    CommandSetOnTime( 1, _AppBefehl );
-                    break;
+            // C: Einschaltzeit für Relais 2 einstellen.
+            case 'C':
+                CommandSetOnTime( 1, _AppBefehl );
+                break;
 
-                case 'D':
-                    CommandSetOnTime( 2, _AppBefehl );
-                    break;
+            // D: Einschaltzeit für Relais 3 einstellen.
+            case 'D':
+                CommandSetOnTime( 2, _AppBefehl );
+                break;
 
-                case 'E':
-                    CommandSetOffTime( 0, _AppBefehl );
-                    break;
+            // E: Ausschaltzeit für Relais 1 einstellen.
+            case 'E':
+                CommandSetOffTime( 0, _AppBefehl );
+                break;
 
-                case 'G':
-                    CommandSetOffTime( 1, _AppBefehl );
-                    break;
+            // G: Ausschaltzeit für Relais 2 einstellen.
+            case 'G':
+                CommandSetOffTime( 1, _AppBefehl );
+                break;
 
-                case 'H':
-                    CommandSetOffTime( 2, _AppBefehl );
-                    break;
+            // H: Ausschaltzeit für Relais 3 einstellen.
+            case 'H':
+                CommandSetOffTime( 2, _AppBefehl );
+                break;
 
-                    case 'J':
-                        CommandSetSwitchDuration( 0, _AppBefehl );
-                        break;
+            // J: Impulsdauer für Relais 1 in Sekunden einstellen.
+            case 'J':
+                CommandSetSwitchDuration( 0, _AppBefehl );
+                break;
 
-                    case 'K':
-                        CommandSetSwitchDuration( 1, _AppBefehl );
-                        break;
+            // K: Impulsdauer für Relais 2 in Sekunden einstellen.
+            case 'K':
+                CommandSetSwitchDuration( 1, _AppBefehl );
+                break;
 
-                    case 'L':
-                        CommandSetSwitchDuration( 2, _AppBefehl );
-                        break;
+            // L: Impulsdauer für Relais 3 in Sekunden einstellen.
+            case 'L':
+                CommandSetSwitchDuration( 2, _AppBefehl );
+                break;
 
-                    case 'M':
-                        CommandSetControlMode( _AppBefehl );
-                        break;
+            // M: Steuerungsart je Relais setzen (0 = Taster, 1 = Dauer an, 2 = Zeitbereich je Monat).
+            case 'M':
+                CommandSetControlMode( _AppBefehl );
+                break;
 
+            // P/Q/R: Einschaltzeit je Monat für Relais 1/2/3 (MMHHMM).
+            case 'P':
+                CommandSetMonthTime( 0, true, _AppBefehl );
+                break;
+            case 'Q':
+                CommandSetMonthTime( 1, true, _AppBefehl );
+                break;
+            case 'R':
+                CommandSetMonthTime( 2, true, _AppBefehl );
+                break;
+
+            // S/V/W: Ausschaltzeit je Monat für Relais 1/2/3 (MMHHMM).
+            case 'S':
+                CommandSetMonthTime( 0, false, _AppBefehl );
+                break;
+            case 'V':
+                CommandSetMonthTime( 1, false, _AppBefehl );
+                break;
+            case 'W':
+                CommandSetMonthTime( 2, false, _AppBefehl );
+                break;
+
+            // O: Oberen Grenzwert des Sensors einstellen.
             case 'O':
-                    oberesLimitSensor = limitseinstellen( _AppBefehl );
-                    break;
+                oberesLimitSensor = limitseinstellen( _AppBefehl );
+                break;
 
+            // U: Unteren Grenzwert des Sensors einstellen.
             case 'U':
-                    unteresLimitSensor = limitseinstellen( _AppBefehl );
-                    break;
+                unteresLimitSensor = limitseinstellen( _AppBefehl );
+                break;
             
+            // A: Sensorsteuerung aktivieren (Wert 0 deaktiviert sie).
             case 'A':
-                    controlBySensorAllowed = checkForNotZero( _AppBefehl );
-                    break;
+                controlBySensorAllowed = checkForNotZero( _AppBefehl );
+                break;
 
             default:
-                // unknown command
+                // Unbekannten Befehl ignorieren.
                 iRet = 0;
                 break;
         }
@@ -339,7 +386,64 @@ uint8_t Commands::compareTimeToTriggerTheLight()
 
 bool Commands::usesSwitchControl(uint8_t relais) const
 {
-    return relais >= 1 && relais <= 3 && switchControl[relais - 1];
+    return getControlMode(relais) == CONTROL_MODE_SWITCH;
+}
+
+uint8_t Commands::getControlMode(uint8_t relais) const
+{
+    if (relais < 1 || relais > 3)
+        return CONTROL_MODE_MONTH_TIME;
+
+    return controlModeRelais[relais - 1];
+}
+
+void Commands::initSwitches()
+{
+    const uint8_t pins[3] = {SWITCH_1, SWITCH_2, SWITCH_3};
+    for (uint8_t i = 0; i < 3; i++)
+    {
+        pinMode(pins[i], INPUT_PULLUP);
+        lastSwitchState[i] = digitalRead(pins[i]);
+    }
+}
+
+uint8_t Commands::getRelaisState(uint8_t relais)
+{
+    if (relais < 1 || relais > 3)
+        return 0;
+
+    const uint8_t pins[3] = {SWITCH_1, SWITCH_2, SWITCH_3};
+    uint8_t index = relais - 1;
+
+    // Taster ist aktiv-low: fallende Flanke startet bzw. verlängert den Impuls.
+    uint8_t state = digitalRead(pins[index]);
+    if (lastSwitchState[index] == HIGH && state == LOW && controlModeRelais[index] == CONTROL_MODE_SWITCH)
+        switchPulseUntil[index] = millis() + switchDurationMs[index];
+    lastSwitchState[index] = state;
+
+    switch (controlModeRelais[index])
+    {
+        case CONTROL_MODE_SWITCH:
+            return (int32_t)(switchPulseUntil[index] - millis()) > 0;
+        case CONTROL_MODE_ALWAYS_ON:
+            return 1;
+        default: // CONTROL_MODE_MONTH_TIME
+            return compareTimeToTriggerTheLight(relais);
+    }
+}
+
+uint8_t Commands::isInTimeRange(timeSet on, timeSet off, uint16_t act)
+{
+    uint16_t on_time = on.std*100 + on.min;
+    uint16_t off_time = off.std*100 + off.min;
+
+    // Ist on_time > off_time, läuft der Zeitbereich über Mitternacht.
+    if( on_time < off_time )
+        return (act >= on_time) && (act < off_time);
+    else if( on_time > off_time )
+        return (act >= on_time) || (act < off_time);
+
+    return 0;
 }
 
 uint32_t Commands::getSwitchDurationMs(uint8_t relais) const
@@ -361,17 +465,12 @@ uint8_t Commands::compareTimeToTriggerTheLight(uint8_t relais)
     uint8_t index = relais - 1;
 
     uint16_t act = _interpreterzeitmaster->getHours()*100 + _interpreterzeitmaster->getMinutes();
-    uint16_t on_time = onTime[index].std*100 + onTime[index].min;
-    uint16_t off_time = offTime[index].std*100 + offTime[index].min;
 
-    // compare the on_time and off_time in 24h format -- HHMM
-    // If the ontime is greater than the off_time, it means the light should be on overnight. Otherwise, it follows the normal schedule.
-    if( on_time < off_time )
-        return (act >= on_time) && (act < off_time);
-    else if( on_time > off_time )
-        return (act >= on_time) || (act < off_time);
+    uint8_t month = _interpreterzeitmaster->getMonth();
+    if (month < 1 || month > 12)
+        return 0;
 
-    return 0;
+    return isInTimeRange(monthOnTime[index][month - 1], monthOffTime[index][month - 1], act);
 }
 
 void Commands::CommandSetOnTime( char  *_Time )
@@ -400,6 +499,8 @@ void Commands::CommandSetOnTime(uint8_t relais, char *_Time)
 
     onTime[relais].std = hours;
     onTime[relais].min = minutes;
+    for (uint8_t m = 0; m < 12; m++)
+        monthOnTime[relais][m] = onTime[relais];
 }
 
 void Commands::CommandSetOffTime( char  *_Time )
@@ -428,6 +529,8 @@ void Commands::CommandSetOffTime(uint8_t relais, char *_Time)
 
     offTime[relais].std = hours;
     offTime[relais].min = minutes;
+    for (uint8_t m = 0; m < 12; m++)
+        monthOffTime[relais][m] = offTime[relais];
 }
 
 void Commands::CommandSetSwitchDuration(uint8_t relais, char *_Duration)
@@ -453,12 +556,34 @@ void Commands::CommandSetControlMode(char *_Mode)
 {
     for (uint8_t relais = 0; relais < 3; relais++)
     {
-        if (_Mode[relais] != '0' && _Mode[relais] != '1')
+        if (_Mode[relais] < '0' || _Mode[relais] > '2')
             return;
     }
 
     for (uint8_t relais = 0; relais < 3; relais++)
-        switchControl[relais] = (_Mode[relais] == '1');
+        controlModeRelais[relais] = _Mode[relais] - '0';
+}
+
+// Parameter: MMHHMM
+void Commands::CommandSetMonthTime(uint8_t relais, bool isOn, char *_Param)
+{
+    if (relais >= 3 || _Param == nullptr)
+        return;
+
+    for (uint8_t i = 0; i < 6; i++)
+        if (_Param[i] < '0' || _Param[i] > '9')
+            return;
+
+    uint8_t month = (_Param[0] - '0') * 10 + (_Param[1] - '0');
+    uint8_t hours = (_Param[2] - '0') * 10 + (_Param[3] - '0');
+    uint8_t minutes = (_Param[4] - '0') * 10 + (_Param[5] - '0');
+
+    if (month < 1 || month > 12 || hours > 23 || minutes > 59)
+        return;
+
+    timeSet &t = isOn ? monthOnTime[relais][month - 1] : monthOffTime[relais][month - 1];
+    t.std = hours;
+    t.min = minutes;
 }
 
 
